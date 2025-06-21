@@ -1,6 +1,6 @@
 {
   "name": "keysmash",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Beautiful, customizable autotyper built with Electron",
   "main": "src/main.js",
   "scripts": {
@@ -30,8 +30,7 @@
   "dependencies": {
     "electron-store": "^8.1.0",
     "electron-updater": "^6.6.2",
-    "node-key-sender": "^1.0.11",
-    "robotjs": "^0.6.0"
+    "node-key-sender": "^1.0.11"
   },
   "build": {
     "appId": "com.jay.keysmash",

@@ -19,14 +19,10 @@ let lastUpdateCheck = 0;
 // Try to require robotjs, but fall back to clipboard method if it fails
 let robot;
 let useRobotjs = false;
-try {
-  robot = require('robotjs');
-  useRobotjs = true;
-  console.log('Using robotjs for typing');
-} catch (error) {
-  console.log('robotjs not available, using clipboard auto-paste method');
-  useRobotjs = false;
-}
+// robotjs temporarily removed due to compatibility issues with Electron 28+
+// The application will use the clipboard auto-paste method which works reliably
+console.log('Using clipboard auto-paste method for typing');
+useRobotjs = false;
 
 // Initialize electron-store for persistent settings
 const store = new Store();

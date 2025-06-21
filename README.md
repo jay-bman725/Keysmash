@@ -13,7 +13,7 @@
 ## ✨ Features
 
 ### 🎯 **Intelligent Typing System**
-- **Dual-Mode Operation**: RobotJS for precision, clipboard fallback for compatibility
+- **Reliable Typing System**: Clipboard-based auto-paste method for maximum compatibility
 - **Cross-Platform**: Works seamlessly on Windows, macOS, and Linux
 - **Smart Fallback**: Automatically adapts to system capabilities
 
@@ -125,9 +125,9 @@ npm run build:linux
 - **[Node.js](https://nodejs.org/)** - JavaScript runtime for system integration
 
 ### Key Dependencies
-- **[robotjs](https://github.com/octalmage/robotjs)** - Direct keyboard simulation (when available)
 - **[electron-store](https://github.com/sindresorhus/electron-store)** - Persistent settings storage
 - **[electron-updater](https://github.com/electron-userland/electron-updater)** - Auto-update functionality
+- **[node-key-sender](https://github.com/garimpeiro-it/node-key-sender)** - Cross-platform key simulation
 
 ### System Integration
 - **Native Clipboard API** - Fallback typing method for maximum compatibility

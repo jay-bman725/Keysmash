@@ -1,15 +1,25 @@
 # Changelog
 **All dates are in YYYY/MM/DD (Year-Month-Day)**
 
+## [1.0.1] - 2025-01-09
+
+### Changed
+- **Typing System Optimization**: Transitioned to clipboard-based typing method for improved reliability
+  - **Removed robotjs dependency**: Eliminated compatibility issues with modern Electron/Node.js versions
+  - **Enhanced cross-platform support**: More reliable builds and deployments across all platforms
+  - **Maintained functionality**: All features continue to work seamlessly with the clipboard method
+
+### Fixed
+- **Build System**: Resolved native module compilation issues in CI/CD pipeline
+- **Cross-platform Compatibility**: Fixed build failures on Linux, macOS, and Windows
+
 ## [1.0.0] - 2025-06-20
 
 ### Added
 - **Initial Release**: Keysmash - Beautiful, customizable autotyper built with Electron
-- **Intelligent Typing System**: Dual-mode typing implementation for maximum compatibility
-  - **Primary Mode**: RobotJS for direct keyboard simulation (when available)
-  - **Fallback Mode**: Smart clipboard-based typing with automatic paste simulation
+- **Intelligent Typing System**: Reliable clipboard-based typing implementation for maximum compatibility
   - **Cross-platform support**: Works seamlessly on Windows, macOS, and Linux
-  - **Automatic fallback**: Gracefully handles systems where RobotJS isn't available
+  - **Smart paste simulation**: Automatic paste command execution based on platform
 
 ### Core Features
 - **Customizable Text Input**: Large, user-friendly text area for content entry
