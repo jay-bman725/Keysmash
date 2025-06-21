@@ -1,9 +1,15 @@
-name: Build and Release Electron App
+name: Build and Release Keysmash
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  NODE_VERSION: 20
 
 jobs:
   read-version:
@@ -25,26 +31,44 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install system dependencies for native modules
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libx11-dev \
+            libxtst-dev \
+            libxinerama-dev \
+            libx11-xcb-dev \
+            libxss-dev \
+            libasound2-dev \
+            build-essential \
+            python3-dev
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build for Linux
-        run: npx electron-builder --linux
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+      - name: Rebuild native modules
+        run: npm run rebuild
 
-      - name: Upload Linux installers
+      - name: Build for Linux
+        run: npm run build:linux
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
           path: |
             dist/*.deb
             dist/*.AppImage
+          retention-days: 7
 
   build-windows:
     needs: read-version
@@ -56,103 +80,124 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build for Windows ${{ matrix.arch }}
-        run: npx electron-builder --win --${{ matrix.arch }}
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+      - name: Rebuild native modules
+        run: npm run rebuild
 
-      - name: Upload Windows installer
+      - name: Build for Windows ${{ matrix.arch }}
+        run: npm run build:win -- --${{ matrix.arch }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Upload Windows ${{ matrix.arch }} artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-build-${{ matrix.arch }}
           path: dist/*.exe
+          retention-days: 7
 
   build-macos:
     needs: read-version
     runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build macOS x64
-        run: npx electron-builder --mac --x64
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+      - name: Rebuild native modules
+        run: npm run rebuild
 
-      - name: Build macOS arm64
-        run: npx electron-builder --mac --arm64
+      - name: Build macOS ${{ matrix.arch }}
+        run: npm run build:mac -- --${{ matrix.arch }}
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ github.token }}
 
-      - name: Upload macOS installers
+      - name: Upload macOS ${{ matrix.arch }} artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-build
+          name: macos-build-${{ matrix.arch }}
           path: dist/*.dmg
+          retention-days: 7
 
   release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [build-linux, build-windows, build-macos, read-version]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: combined-artifacts
+          path: artifacts
 
-      - name: List artifact directory contents
-        run: find combined-artifacts
+      - name: Display artifact structure
+        run: find artifacts -type f
 
-      - name: Rename files for release
+      - name: Prepare release assets
         run: |
           VERSION="v${{ needs.read-version.outputs.version }}"
-          mkdir renamed
-
-          # Linux
-          for f in combined-artifacts/linux-build/*; do
-            ext="${f##*.}"
-            cp "$f" "renamed/linux-Keysmash-${VERSION}.${ext}"
-          done
-
-          # Windows
-          for f in combined-artifacts/windows-build-x64/*; do
-            cp "$f" "renamed/windows-Keysmash-${VERSION}-x64.exe"
-          done
-
-          for f in combined-artifacts/windows-build-arm64/*; do
-            cp "$f" "renamed/windows-Keysmash-${VERSION}-arm64.exe"
-          done
-
-          # macOS
-          i=0
-          for f in combined-artifacts/macos-build/*.dmg; do
-            if [ "$i" -eq 0 ]; then
-              cp "$f" "renamed/macos-Keysmash-${VERSION}-x64.dmg"
-            else
-              cp "$f" "renamed/macos-Keysmash-${VERSION}-arm64.dmg"
-            fi
-            i=$((i + 1))
-          done
+          mkdir -p release-assets
+          
+          # Linux builds
+          find artifacts/linux-build -name "*.deb" -exec cp {} release-assets/Keysmash-${VERSION}-linux.deb \;
+          find artifacts/linux-build -name "*.AppImage" -exec cp {} release-assets/Keysmash-${VERSION}-linux.AppImage \;
+          
+          # Windows builds
+          find artifacts/windows-build-x64 -name "*.exe" -exec cp {} release-assets/Keysmash-${VERSION}-windows-x64.exe \;
+          find artifacts/windows-build-arm64 -name "*.exe" -exec cp {} release-assets/Keysmash-${VERSION}-windows-arm64.exe \;
+          
+          # macOS builds
+          find artifacts/macos-build-x64 -name "*.dmg" -exec cp {} release-assets/Keysmash-${VERSION}-macos-x64.dmg \;
+          find artifacts/macos-build-arm64 -name "*.dmg" -exec cp {} release-assets/Keysmash-${VERSION}-macos-arm64.dmg \;
+          
+          # List final assets
+          ls -la release-assets/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.read-version.outputs.version }}
-          name: v${{ needs.read-version.outputs.version }}
-          files: renamed/*
-          token: ${{ secrets.GH_PAT }}
+          name: Keysmash v${{ needs.read-version.outputs.version }}
+          body: |
+            ## Keysmash v${{ needs.read-version.outputs.version }}
+            
+            **Download the appropriate installer for your platform:**
+            
+            ### Windows
+            - **x64**: `Keysmash-v${{ needs.read-version.outputs.version }}-windows-x64.exe`
+            - **ARM64**: `Keysmash-v${{ needs.read-version.outputs.version }}-windows-arm64.exe`
+            
+            ### macOS
+            - **Intel (x64)**: `Keysmash-v${{ needs.read-version.outputs.version }}-macos-x64.dmg`
+            - **Apple Silicon (ARM64)**: `Keysmash-v${{ needs.read-version.outputs.version }}-macos-arm64.dmg`
+            
+            ### Linux
+            - **AppImage (Universal)**: `Keysmash-v${{ needs.read-version.outputs.version }}-linux.AppImage`
+            - **Debian Package**: `Keysmash-v${{ needs.read-version.outputs.version }}-linux.deb`
+            
+            ---
+            *Built automatically from commit ${{ github.sha }}*
+          files: release-assets/*
+          draft: false
+          prerelease: false
+          token: ${{ github.token }}
